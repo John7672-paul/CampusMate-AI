@@ -95,6 +95,20 @@ class AssistantTaskMatchingTests(unittest.TestCase):
         self.assertTrue(confirmed["success"])
         delete.assert_called_once_with(3)
 
+    def test_delete_cancellation_phrases_are_case_insensitive_and_leave_tasks_unchanged(self):
+        original_tasks = [dict(item) for item in self.tasks]
+
+        for response in ("cancel", "NO", "Never Mind", "DON'T DELETE"):
+            with self.subTest(response=response), patch.object(assistant, "delete_task") as delete:
+                result = assistant.process_assistant_message(response)
+
+            self.assertEqual("delete_cancelled", result["action"])
+            self.assertTrue(result["success"])
+            self.assertFalse(result["tasks_changed"])
+            self.assertIn("cancelled", result["reply"].lower())
+            self.assertEqual(original_tasks, self.tasks)
+            delete.assert_not_called()
+
     def test_no_matching_task_is_reported_without_mutation(self):
         with patch.object(assistant, "update_task") as update, patch.object(assistant, "delete_task") as delete:
             result = assistant.process_assistant_message("Complete quantum mechanics paper")

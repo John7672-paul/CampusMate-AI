@@ -147,6 +147,14 @@ export default function App() {
     try {
       const response = await sendAssistantMessage(userText, courseContext);
 
+      if (response.action === 'delete_cancelled') {
+        setChatMessages(prev => prev.map(message => (
+          message.sender === 'assistant' && message.actions?.some(action => action.startsWith('Confirm delete '))
+            ? { ...message, actions: [] }
+            : message
+        )));
+      }
+
       // Contextual action chips based on assistant response
       let actions = ["Show my pending tasks", "How many tasks do I have?", "Make a study plan for me"];
       if (response.action === 'list_pending') {

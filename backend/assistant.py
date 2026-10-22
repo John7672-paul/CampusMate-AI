@@ -191,6 +191,16 @@ def process_assistant_message(message: str, course_context: Optional[str] = "All
     raw_msg = message.strip()
     norm_msg = normalize_text(raw_msg)
 
+    # A standalone cancellation response must never fall through to another
+    # intent or be interpreted as a task title.
+    if norm_msg in {"cancel", "no", "never mind", "dont delete", "don t delete"}:
+        return {
+            "reply": "Deletion cancelled. No tasks were changed.",
+            "success": True,
+            "action": "delete_cancelled",
+            "tasks_changed": False,
+        }
+
     # ---------------------------------------------------------
     # Intent 1: Count tasks
     # (Check before general list to avoid overlap with 'how many tasks')
