@@ -3,11 +3,11 @@
  * Connects frontend React components to Python FastAPI + SQLite backend.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const DIRECT_BACKEND_URL = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  || (import.meta.env.PROD ? 'https://campusmate-ai-api.onrender.com/api' : '/api');
 
 /**
- * Helper to perform fetch with fallback to direct backend URL if proxy isn't available
+ * Helper to perform fetch and keep network and HTTP errors distinguishable.
  */
 async function apiFetch(endpoint, options = {}) {
   const headers = {
@@ -15,36 +15,21 @@ async function apiFetch(endpoint, options = {}) {
     ...(options.headers || {}),
   };
 
-  // Try relative endpoint first (works with Vite proxy or production reverse proxy)
+  let response;
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
-    if (response.ok) {
-      return await response.json();
-    }
+  } catch (err) {
+    throw new Error(`Unable to connect to the API at ${API_BASE_URL}: ${err.message}`, { cause: err });
+  }
+
+  if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     throw new Error(errorBody.detail || `HTTP Error ${response.status}: ${response.statusText}`);
-  } catch (err) {
-    // If relative endpoint failed due to network error and wasn't direct, attempt direct backend URL
-    if (API_BASE_URL !== DIRECT_BACKEND_URL && !endpoint.startsWith('http')) {
-      try {
-        const directRes = await fetch(`${DIRECT_BACKEND_URL}${endpoint}`, {
-          ...options,
-          headers,
-        });
-        if (directRes.ok) {
-          return await directRes.json();
-        }
-        const errorBody = await directRes.json().catch(() => ({}));
-        throw new Error(errorBody.detail || `HTTP Error ${directRes.status}: ${directRes.statusText}`);
-      } catch (directErr) {
-        throw new Error(directErr.message || 'Unable to connect to backend server');
-      }
-    }
-    throw err;
   }
+  return await response.json();
 }
 
 /**
